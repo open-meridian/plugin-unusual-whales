@@ -44,8 +44,7 @@ HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:8def82a@sha256:763b1d044
 # The harness's two plugins: this one, as instance unusual-whales, holding
 # data as pyproject.toml declares; and the reader, a reporting and signal
 # plugin (reporting resolves SPY's record, signal reads the chain and the
-# tape) the e2e
-# runs from e2e/reader.py in the same image.
+# tape) the e2e runs from e2e/reader.py in the same image.
 # The declaration [tool.meridian] names (contract v25): `make e2e` prints it
 # from the image under test, as `meridian plugin upload` reads it, and the
 # harness holds the plugin's registration to it (its README, `declaration`).

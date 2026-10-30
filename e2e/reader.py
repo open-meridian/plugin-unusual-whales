@@ -136,7 +136,7 @@ def serve(reader):
 #: e2e prints it with meridian-declaration and the harness holds the
 #: stand-in's registration to it.
 DECLARATION = meridian.Declaration(
-    interface=Interface(PORT, "The e2e's reader", pages=[Page("/", "Prints", levels=["read"])])
+    interface=Interface(PORT, "The e2e's reader", pages=[Page("/", "Prints", levels=["read"], roles=["reporting", "signal"])])
 )
 
 
