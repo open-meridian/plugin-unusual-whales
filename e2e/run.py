@@ -174,7 +174,7 @@ def run():
                "display=true", "personal_use=true",
                "note=Unusual Whales' public API terms: personal use, kept, displayed.")
         runner("entitle", "--instance", "reader", dataset, "note=The e2e's reader reads them.")
-    runner("grant", "--instance", "reader", "--level", "read")
+    runner("grant", "--instance", "reader", "--level", "read", "--role", "reporting")
     spy = reader("/resolve")["spy"]
     must(spy.startswith("INS-"), f"step 4, SPY's record is the platform's: {spy}")
 
