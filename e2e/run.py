@@ -1,5 +1,5 @@
 """`make e2e`: the plugin on the plugin harness of the runtime it pins
-(contract v28), beside `reader`, a signal plugin (e2e/reader.py) entitled to
+(contract v28), beside `reader`, a reporting and signal plugin (e2e/reader.py) entitled to
 its datasets, and the harness's admin. Run from the repository's root by the
 Makefile, which builds the image and writes the harness's plugins first;
 standard library only. The harness's stand-in for the platform mints SPY's

@@ -1,5 +1,5 @@
 """A reading plugin for the e2e, on the Python SDK: the deployment's view of
-what this plugin recorded, as a `signal` plugin entitled to its datasets
+what this plugin recorded, as a `reporting` and `signal` plugin entitled to its datasets
 reads it (W10.6). Not the plugin, and never shipped: the e2e runs it from
 this directory in the plugin's own image, which carries the SDK.
 

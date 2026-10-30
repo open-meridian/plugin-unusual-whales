@@ -1,7 +1,7 @@
 # The e2e's additions to the harness's plugins (the harness's README, "The
 # plugins"): the plugin given a hosts file in which the Unusual Whales API
 # answers nowhere, so the run reads only the sample data committed with it;
-# and the reader, a signal plugin run from this directory in the plugin's own
+# and the reader, a reading plugin run from this directory in the plugin's own
 # image. Paths are absolute, from E2E_DIR, since a later compose file's
 # relative paths resolve against the first file's directory.
 services:

@@ -42,7 +42,9 @@ CLI_CONTEXT := $(if $(MERIDIAN_BIN),--build-context cli=$(MERIDIAN_BIN),)
 RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:8def82a@sha256:f0565be718b588bb96fabf52a5b16a60500db985b44f480edb73b8005d8e931f
 HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:8def82a@sha256:763b1d04466df14ef41e17497133a4e292f30df1631494a4cc36cff03326deff
 # The harness's two plugins: this one, as instance unusual-whales, holding
-# data as pyproject.toml declares; and the reader, a signal plugin the e2e
+# data as pyproject.toml declares; and the reader, a reporting and signal
+# plugin (reporting resolves SPY's record, signal reads the chain and the
+# tape) the e2e
 # runs from e2e/reader.py in the same image.
 # The declaration [tool.meridian] names (contract v25): `make e2e` prints it
 # from the image under test, as `meridian plugin upload` reads it, and the
@@ -50,7 +52,7 @@ HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:8def82a@sha256:763b1d044
 # Each stand-in's the same, its directory mounted as it runs.
 DECLARATION_REF := $(shell sed -n 's/^declaration *= *"\(.*\)"/\1/p' pyproject.toml)
 DECLARE := docker run --rm --network none --entrypoint meridian-declaration
-PLUGINS := [{"instance": "unusual-whales", "image": "$(IMAGE)", "roles": ["data"], "declaration": "declaration.json"}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["signal"], "declaration": "reader.json"}]
+PLUGINS := [{"instance": "unusual-whales", "image": "$(IMAGE)", "roles": ["data"], "declaration": "declaration.json"}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["reporting", "signal"], "declaration": "reader.json"}]
 # E2E_MINTS: the FIGI the e2e's reader states of SPY (e2e/reader.py), invented
 # for the e2e. The harness's stand-in platform is told it holds it, so SPY is
 # the platform's INS- record, which the lake wants.
