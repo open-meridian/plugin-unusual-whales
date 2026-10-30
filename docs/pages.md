@@ -12,11 +12,11 @@ How the plugin reaches the Unusual Whales API:
 - **Key:** the mode (Live, No key or Sample data) and whether the API token
   is set -- never its value;
 - **Limits and use:** the plan's limits, the requests made, the last call
-  and the last error; **Allowance**, the plan's request allowance and the
-  count toward it as the API last stated them; and **Calendar**, the
-  calendar its trading dates follow, or why it was not read;
-- **Stream:** the standing wants it keeps current, and its reading passes,
-  with the last error.
+  and the last error; and **Allowance**, the plan's request allowance and
+  the count toward it as the API last stated them;
+- **Stream:** **Standing wants**, how many it keeps current; its `…` opens
+  the reading passes, the calendar its trading dates follow (or why it was
+  not read) and the last error.
 
 ## Datasets (`read_datasets`)
 
