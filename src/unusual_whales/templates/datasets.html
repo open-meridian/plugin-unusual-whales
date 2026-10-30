@@ -1,0 +1,8 @@
+{#- Datasets, at admin: the data role's (meridian/roles/data/datasets.html),
+    with Unusual Whales' nuance at its blocks only -- "Behind" as a column of
+    "Served": the source behind each dataset's values (ruling 387), in full
+    on the cell's title. One screen holds the three rows, so nothing else is
+    added above them. No price, print or figure: those are the reading
+    roles'. -#}
+{% extends "meridian/roles/data/datasets.html" %}
+{% block vendor_columns %}{% if row is none %}<th>Behind</th>{% else %}{% set b = data.behind|selectattr("dataset", "equalto", row.dataset)|first %}<td data-dataset="{{ row.dataset }}" title="{{ b.source }}">{{ b.short }}</td>{% endif %}{% endblock %}

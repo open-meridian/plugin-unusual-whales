@@ -1,0 +1,15 @@
+{#- Connection, at admin: the data role's (meridian/roles/data/connection.html),
+    with Unusual Whales' nuance at its blocks only -- "Allowance" and
+    "Calendar" as rows of "Limits and use", the plan's request allowance and
+    the count toward it as the API last stated them; and the standing wants'
+    reading as rows of "Stream". No price, print or figure: those are the
+    reading roles'. -#}
+{% extends "meridian/roles/data/connection.html" %}
+{% import "meridian/roles/_rows.html" as om %}
+{% block vendor_rows %}{% if section == "Limits and use" %}
+{{ om.row("Allowance", (data.allowance_used ~ " of " ~ data.allowance) if data.allowance else "Not stated yet", "As the API stated it on its last answer: a day's requests on most plans (reset at 20:00 New York), a billing month's on Options Starter; HTTP 200 answers alone count") }}
+{{ om.row("Calendar", data.calendar or "Not read yet", data.calendar_error or "The platform's US equity calendar: open interest is dated the market day before it is read, volume the session's day") }}
+{% elif section == "Stream" %}
+{{ om.row("Standing wants", data.standing, "Polled, not streamed: a chain every 5 minutes, prints every 30 seconds, in market hours") }}
+{{ om.row("Passes", data.tape_passes, (("Last error: " ~ data.tape_error) if data.tape_error else "") ~ ((" " ~ data.tape_gaps ~ " reads stopped short of the last print read") if data.tape_gaps else "")) }}
+{% endif %}{% endblock %}
