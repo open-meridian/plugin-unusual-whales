@@ -23,6 +23,13 @@ read from it (subjects.py), declined `not_covered` where it has none:
 
 **Each row once**: a series or a statistic is sent again only where it
 changed; a print only where it is newer than the last read, or cancelled.
+
+**The allowance** (0.1.1): standing wants' reads are paced so what is left
+of the plan's allowance lasts until the API resets its count (api.Allowance):
+each read's requests push the next standing read back by their share of the
+time left; the reads due are taken oldest first. Wants asked now are never
+paced; a tenth of the allowance is kept for them.
+
 Each read that answered is its dataset's sign of life (`Wants.liveness`),
 at most once a minute. **Its licences** (contract v20, W10.9): read on start
 and each minute.
@@ -131,6 +138,8 @@ class Work:
     sent: OrderedDict[tuple[str, str, str], str] = field(default_factory=OrderedDict)
     alive_ns: dict[str, int] = field(default_factory=dict)
     wake: asyncio.Event = field(default_factory=asyncio.Event)
+    #: When the next standing read may be made, by the allowance's budget.
+    paced_until_ns: int = 0
 
     def __post_init__(self) -> None:
         self.wants = Wants(self.plugin, KEYS, clock_ns=self.clock_ns)
@@ -512,35 +521,51 @@ class Work:
 
     async def due(self) -> int:
         """Every standing want's chain or tape whose cadence has come, read
-        and recorded; how many were read."""
+        and recorded, the longest unread first, while the allowance's budget
+        allows; how many were read."""
         read = 0
         now = self.now()
+        due: list[tuple[int, str, str]] = []
         for key in KEYS:
             standing = self.wants.standing_of(key)
             if not standing or not await self.in_hours(key):
                 continue
             cadence = CHAIN_CADENCE_SECONDS if key == OPTIONS else TAPE_CADENCE_SECONDS
-            subjects = sorted({s for w in standing for s in w.subjects})
-            for subject in subjects:
-                if now - self.read_at.get((key, subject), 0) < cadence * NS:
-                    continue
-                self.read_at[(key, subject)] = now
-                listing = await self.symbols.listing(subject)
-                if listing is None:
-                    continue
-                want_id = next(w.want_id for w in standing if subject in w.subjects)
-                try:
-                    if key == OPTIONS:
-                        await self.read_chain(subject, listing, want_id)
-                    else:
-                        await self.read_tape(key, subject, listing.symbol, want_id)
-                    self.tapes.error = ""
-                except (ApiError, meridian.MeridianError, ValueError) as failed:
-                    self.tapes.error = str(failed)[:300]
-                    log.warning("%s of %s not read: %s", key, listing.symbol, failed)
-                read += 1
+            for subject in sorted({s for w in standing for s in w.subjects}):
+                last = self.read_at.get((key, subject), 0)
+                if now - last >= cadence * NS:
+                    due.append((last, key, subject))
+        for _, key, subject in sorted(due):
+            if self.now() < self.paced_until_ns:
+                break
+            self.read_at[(key, subject)] = now
+            listing = await self.symbols.listing(subject)
+            standing = self.wants.standing_of(key)
+            if listing is None or not standing:
+                continue
+            want_id = next((w.want_id for w in standing if subject in w.subjects), "")
+            calls = self.api.health.calls
+            try:
+                if key == OPTIONS:
+                    await self.read_chain(subject, listing, want_id)
+                else:
+                    await self.read_tape(key, subject, listing.symbol, want_id)
+                self.tapes.error = ""
+            except (ApiError, meridian.MeridianError, ValueError) as failed:
+                self.tapes.error = str(failed)[:300]
+                log.warning("%s of %s not read: %s", key, listing.symbol, failed)
+            self.spent(self.api.health.calls - calls)
+            read += 1
         self.tapes.passes += 1
         return read
+
+    def spent(self, calls: int) -> None:
+        """A standing read's requests: the next standing read put back by
+        their share of what the allowance has left until it resets."""
+        now = self.now()
+        gap = self.api.allowance.gap_ns(now)
+        if gap and calls:
+            self.paced_until_ns = max(self.paced_until_ns, now) + calls * gap
 
     async def keep_current(self) -> None:
         """The standing wants kept current, each at its dataset's cadence,

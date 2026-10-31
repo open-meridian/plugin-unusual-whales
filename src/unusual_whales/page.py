@@ -64,6 +64,7 @@ class ConnectionRead(data.ConnectionRead):
 
     allowance: str = ""
     allowance_used: str = ""
+    budget: str = ""
     calendar: str = ""
     calendar_error: str = ""
     standing: int = 0
@@ -116,6 +117,7 @@ def connection_read(work: Work) -> ConnectionRead:
         sessions=None,
         allowance=work.api.allowance.limit,
         allowance_used=work.api.allowance.count,
+        budget=work.api.allowance.said(work.now()) if work.api.mode == "live" else "",
         calendar=calendar.calendar_id if calendar.read_on else "",
         calendar_error=calendar.error,
         standing=len(work.wants.standing),

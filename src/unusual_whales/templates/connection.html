@@ -8,7 +8,7 @@
 {% extends "meridian/roles/data/connection.html" %}
 {% import "meridian/roles/_rows.html" as om %}
 {% block vendor_rows %}{% if section == "Limits and use" %}
-{{ om.row("Allowance", (data.allowance_used ~ " of " ~ data.allowance) if data.allowance else "Not stated yet", "As the API stated it on its last answer: a day's requests on most plans (reset at 20:00 New York), a billing month's on Options Starter; HTTP 200 answers alone count") }}
+{{ om.row("Allowance", (data.allowance_used ~ " of " ~ data.allowance) if data.allowance else "Not stated yet", "As the API stated it on its last answer: a day's requests on most plans (reset at 20:00 New York), a billing month's on Options Starter; HTTP 200 answers alone count." ~ ((" " ~ data.budget) if data.budget else "")) }}
 {% elif section == "Stream" %}
 {{ om.row("Standing wants", data.standing, "Polled, not streamed: a chain every 5 minutes, prints every 30 seconds, in market hours. " ~ data.tape_passes ~ " passes" ~ ((", " ~ data.tape_gaps ~ " stopped short of the last print read") if data.tape_gaps else "") ~ ". Calendar: " ~ (data.calendar or data.calendar_error or "not read yet") ~ ((". Last error: " ~ data.tape_error) if data.tape_error else "")) }}
 {% endif %}{% endblock %}

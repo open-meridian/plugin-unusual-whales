@@ -11,6 +11,8 @@ from pathlib import Path
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
 
+from unusual_whales.api import COUNT_HEADER, LIMIT_HEADER
+
 from conftest import (
     NO_SYMBOL,
     OTHER,
@@ -267,3 +269,43 @@ async def test_a_withdrawn_want_is_no_longer_kept_current(tmp_path: Path) -> Non
     clock.advance(600)
     await done.due()
     assert len(done.api.transport.requests) == calls  # type: ignore[attr-defined]
+
+
+class Stated(Sample):
+    """The sample data, each answer stating a daily allowance and a count."""
+
+    def __init__(self, limit: str, count: str) -> None:
+        super().__init__()
+        self.limit, self.count = limit, count
+
+    def get(self, url: str, headers: dict[str, str]) -> tuple[int, dict[str, str], str]:
+        status, _, body = super().get(url, headers)
+        return status, {LIMIT_HEADER: self.limit, COUNT_HEADER: self.count}, body
+
+
+async def test_standing_reads_are_paced_to_the_allowance(tmp_path: Path) -> None:
+    clock = Clock()  # 15:00 New York: five hours before the count resets
+    done = work(tmp_path, lake(), transport=Stated("1000", "100"), clock=clock)
+    done.api.allowance.daily = True
+    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
+    await done.on_want(want("w-2", [SPY], key="off_exchange", data_type=TRADE, standing=True))
+    # 1,000 a day, 100 spent and 100 kept: 800 left for 18,000 s, one every 22.5 s.
+    clock.advance(30)
+    assert await done.due() == 1  # both due, one read: the next waits its share
+    clock.advance(10)
+    assert await done.due() == 0
+    clock.advance(13)
+    assert await done.due() == 1  # the other, never starved
+    assert "800 more requests" in done.api.allowance.said(clock())
+
+
+async def test_with_the_allowance_spent_standing_reads_wait_for_the_reset(tmp_path: Path) -> None:
+    clock = Clock()
+    done = work(tmp_path, lake(), transport=Stated("1000", "990"), clock=clock)
+    done.api.allowance.daily = True
+    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
+    clock.advance(30)
+    assert await done.due() == 1  # the read that learns nothing is left
+    clock.advance(3600)
+    assert await done.due() == 0
+    assert done.paced_until_ns == Clock().ns + 5 * 3600 * 1_000_000_000  # 20:00 New York
