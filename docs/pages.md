@@ -13,7 +13,8 @@ How the plugin reaches the Unusual Whales API:
   is set -- never its value;
 - **Limits and use:** the plan's limits, the requests made, the last call
   and the last error; and **Allowance**, the plan's request allowance and
-  the count toward it as the API last stated them;
+  the count toward it as the API last stated them, with what is left for
+  standing wants until the count resets;
 - **Stream:** **Standing wants**, how many it keeps current; its `…` opens
   the reading passes, the calendar its trading dates follow (or why it was
   not read) and the last error.

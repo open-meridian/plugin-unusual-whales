@@ -19,7 +19,11 @@ refused, and Connection says so with the entitlement Unusual Whales names.
 minute per underlying in market hours, a chain one call per 500 contracts
 every five minutes. Only answers that succeed count toward the allowance,
 and every token of the account shares it. Connection shows the allowance and
-the count as the API last stated them.
+the count as the API last stated them, and what the budget allows: the
+plugin spreads what is left of the day's share evenly until the count resets
+at 20:00 New York, keeping a tenth for wants asked now, and slows its
+standing reads to fit. Until it has seen the count reset, it takes the
+allowance as a month's (Options Starter's) and spends a 31st of it a day.
 
 ## Launching it
 

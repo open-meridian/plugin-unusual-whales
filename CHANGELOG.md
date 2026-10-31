@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.1 (2026-10-30)
+
+Bug fixes (ruling 926), until the SDK's own pacing, retry and allowance
+helpers replace them (924).
+
+- **Standing wants are budgeted against the plan's allowance:** what is
+  left of the day's share (`x-uw-token-req-limit` less
+  `x-uw-daily-req-count`), less a tenth kept for wants asked now, is spread
+  evenly until the count resets at 20:00 New York; each standing read's
+  requests put the next back by their share, the longest unread first, and
+  once the share is spent standing reads wait for the reset. Until the
+  count has been seen to reset, the allowance is taken as a month's
+  (Options Starter's) and a 31st of it is spent a day, so it lasts the
+  month. Connection's **Allowance** says what the budget allows. Wants
+  asked now are never held back.
+- **A 429 is waited out:** as `Retry-After` asks, else until the API's
+  minute resets (`x-uw-req-per-minute-reset`), else after 1, 2 then 4
+  seconds with jitter; at most three times, each counted, and only then is
+  the read failed. Before, the first 429 failed it.
+- Not in this version: the option prints' exchange resolved to a venue by
+  its MIC (a follow-up).
+
 ## 0.1.0
 
 The first version: Unusual Whales' public API as a data plugin, on

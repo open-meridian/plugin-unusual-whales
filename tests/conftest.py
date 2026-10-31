@@ -103,8 +103,9 @@ def work(
 ) -> Work:
     """The plugin's work on the lake as a test stands it in and the sample
     data."""
-    api = Api(RawStore(tmp), transport or Sample(), mode)
-    return Work(plugin if plugin is not None else lake(), api, clock_ns=clock or Clock())
+    clock = clock or Clock()
+    api = Api(RawStore(tmp), transport or Sample(), mode, clock_ns=clock)
+    return Work(plugin if plugin is not None else lake(), api, clock_ns=clock)
 
 
 def want(

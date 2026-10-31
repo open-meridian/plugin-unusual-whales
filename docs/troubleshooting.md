@@ -7,8 +7,8 @@
 | **No key** | No API token is set: every request would be refused | Enter the token in Settings |
 | Last error: *refused the request (401)* | The API did not accept the token, or it is missing | Check the token on your Unusual Whales API dashboard, and enter it again |
 | Last error: *refused the token for this request (403: ...)* | The token's plan does not serve that request; the code names the entitlement | `historic_data_access_missing`: a date past the plan's history; `advanced_tier_required`: an Advanced endpoint |
-| Last error: *limiting this token's requests (429)* | The plan's allowance or a limit was reached | Fewer standing wants, or a plan with more requests |
-| **Allowance** near its limit | The day's (or month's) requests are nearly spent | Fewer standing wants; the count resets at 20:00 New York, or with the billing month on Starter |
+| Last error: *limiting this token's requests (429)* | The API's per-minute limit was reached more than three times running (each 429 is waited out first), or the plan's allowance is spent | Fewer standing wants, or a plan with more requests |
+| **Allowance** near its limit | The day's (or month's) requests are nearly spent | Standing wants are already slowed to what is left, and wait for 20:00 New York once their share is spent; for fresher reads, fewer standing wants or a plan with more requests |
 | Standing wants: *Calendar* not read | The deployment answered no US equity calendar | Pull the calendar from the platform; until then no statistic is dated |
 | **Not answering** | The API could not be reached | Check the deployment's outbound access to api.unusualwhales.com |
 
