@@ -77,7 +77,7 @@ class Lake(Work):
             self.api.use_token(token)
         try:
             await self.store.tend(self.plugin, settings=delivered)
-        except (meridian.MeridianError, OSError) as failed:
+        except (meridian.MeridianError, OSError, ValueError) as failed:
             log.warning("the raw answers were not tended this time: %s", failed)
 
     async def on_start(self) -> None:
