@@ -1,6 +1,6 @@
 """The data plugin's work (the role `data`): Unusual Whales' option chains,
 option prints and off-exchange prints into the lake, converted at the edge,
-through the SDK's `Wants` and its chain helpers (`meridian.roles.chains`).
+through the SDK's `Wants` and its chain helpers (`meridian.helpers.chains`).
 
 **Wants** (W10.7), by dataset; each subject an `INS-` record whose ticker is
 read from it (subjects.py), declined `not_covered` where it has none:
@@ -42,12 +42,12 @@ import contextlib
 import datetime as dt
 import logging
 import time
-from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 import meridian
+from meridian.helpers import chains as helpers
 from meridian.operations import (
     Eligibility,
     Money,
@@ -59,8 +59,8 @@ from meridian.operations import (
     TradeAttributes,
 )
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.roles import chains as helpers
-from meridian.roles.data import Wants, unconverted
+from meridian.roles import data
+from meridian.roles.data import SentRows, Wants, unconverted
 
 from . import convert
 from .api import PAGE, Api, ApiError
@@ -105,8 +105,6 @@ TICK_SECONDS = 5
 REMEMBERED = 200_000
 MS = 1_000_000
 
-Plugin = Any  # meridian.Plugin, or the suite's Recorder: the SDK's typed operations
-
 
 @dataclass
 class Tapes:
@@ -119,11 +117,11 @@ class Tapes:
 
 
 @dataclass
-class Work:
-    """The plugin's work against whatever operations it is given: the
-    plugin's own when it runs, a recorder's in its tests."""
+class Work(data.Role):
+    """The data role's class (SDK 0.35): the plugin's work, its acts made on
+    itself -- registered on the connection when it runs (`__main__`), bound
+    to the suites' recorder in its tests."""
 
-    plugin: Plugin
     api: Api
     clock_ns: Callable[[], int] = time.time_ns
     wants: Wants = field(init=False)
@@ -135,16 +133,16 @@ class Work:
     #: Where each tape's reading stands, by (key, ticker).
     cursors: dict[tuple[str, str], Cursor] = field(default_factory=dict)
     #: Each row's last sending, by (data type, dataset, row key).
-    sent: OrderedDict[tuple[str, str, str], str] = field(default_factory=OrderedDict)
+    sent: SentRows = field(default_factory=lambda: SentRows(REMEMBERED))
     alive_ns: dict[str, int] = field(default_factory=dict)
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     #: When the next standing read may be made, by the allowance's budget.
     paced_until_ns: int = 0
 
     def __post_init__(self) -> None:
-        self.wants = Wants(self.plugin, KEYS, clock_ns=self.clock_ns)
-        self.symbols = Symbols(self.plugin, self.clock_ns)
-        self.calendar = Calendar(self.plugin, US_EQUITY_CALENDAR, self.clock_ns)
+        self.wants = Wants(self, KEYS, clock_ns=self.clock_ns)
+        self.symbols = Symbols(self, self.clock_ns)
+        self.calendar = Calendar(self, US_EQUITY_CALENDAR, self.clock_ns)
 
     @property
     def latency(self) -> Any:
@@ -174,11 +172,13 @@ class Work:
 
     # ── Wants ───────────────────────────────────────────────────────────
 
-    async def on_want(self, heard: meridian.Heard[ops.ObservationsWantedEvent]) -> None:
+    async def on_observations_wanted(
+        self, heard: meridian.Heard[ops.ObservationsWantedEvent]
+    ) -> None:
         await self.wants.hear(heard, self.answer)
         self.wake.set()
 
-    async def on_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
+    async def on_want_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
         if self.wants.withdraw(heard.message.want_id) is not None:
             log.info("standing want %s withdrawn", heard.message.want_id)
         self.wake.set()
@@ -229,19 +229,6 @@ class Work:
             for subject in served:
                 self.read_at[(key, subject)] = self.now()
         return declined
-
-    # ── Chains ──────────────────────────────────────────────────────────
-
-    def _changed(self, data_type: str, dataset: str, row_key: str, said: str) -> bool:
-        """Whether a row says something other than its last sending."""
-        mark = (data_type, dataset, row_key)
-        if self.sent.get(mark) == said:
-            return False
-        self.sent[mark] = said
-        self.sent.move_to_end(mark)
-        while len(self.sent) > REMEMBERED:
-            self.sent.popitem(last=False)
-        return True
 
     async def dates(self) -> dict[str, str]:
         """The trading date each statistic read now is for: open interest the
@@ -299,7 +286,7 @@ class Work:
                     raw=raw,
                 )
                 terms = repr([(f.path, f.value) for f in row.fields])
-                if self._changed(SERIES, dataset, f"{contract.osi}@{subject}", terms):
+                if self.sent.changed(SERIES, dataset, f"{contract.osi}@{subject}", terms):
                     series.append(row)
                 key = helpers.osi_key(contract.osi)
                 for kind, value in (
@@ -313,7 +300,7 @@ class Work:
                         subject, key, kind, value, day, dataset=dataset, valid_from_ns=now, raw=raw
                     )
                     assert stat.meta is not None
-                    if self._changed(
+                    if self.sent.changed(
                         STATISTIC, dataset, f"{stat.meta.row_key}@{subject}", str(value)
                     ):
                         statistics.append(stat)
@@ -412,7 +399,7 @@ class Work:
             if not cancelled and not cursor.fresh(trade_id, at_ns):
                 continue
             assert made.meta is not None
-            if not self._changed(TRADE, self.dataset(key), made.meta.row_key, repr(cancelled)):
+            if not self.sent.changed(TRADE, self.dataset(key), made.meta.row_key, repr(cancelled)):
                 continue
             rows.append(made)
             heard.append((trade_id, at_ns))

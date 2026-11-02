@@ -105,7 +105,8 @@ def work(
     data."""
     clock = clock or Clock()
     api = Api(RawStore(tmp), transport or Sample(), mode, clock_ns=clock)
-    return Work(plugin if plugin is not None else lake(), api, clock_ns=clock)
+    held: Work = (plugin if plugin is not None else lake()).bind(Work(api, clock_ns=clock))
+    return held
 
 
 def want(

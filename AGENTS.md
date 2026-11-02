@@ -1,7 +1,7 @@
 # meridian-unusual-whales
 
 Unusual Whales' options flow and market data as an Open Meridian data
-plugin, in Python on the open-meridian SDK (0.33.3, contract v28). It runs
+plugin, in Python on the open-meridian SDK (0.35.2, contract v29). It runs
 beside a sidecar in a Meridian deployment and reads the Unusual Whales API
 with the deployment's API token, putting option chains, the option tape and
 off-exchange prints into the deployment's lake. What it may publish and
@@ -27,6 +27,14 @@ own flow measures against; its dataset keys are proposed with 0.1.0.
 - `src/unusual_whales/work.py` answers the lake's wants through the SDK's
   `Wants` and chain helpers, and keeps each standing want current at its
   dataset's cadence, in market hours.
+- `src/unusual_whales/__main__.py`: the data role's class, `Lake` (the
+  work, `Work`, a `data.Role` making its acts on itself; open-meridian
+  0.35), registered with `meridian.run`, which applies the settings
+  (`Lake.on_settings`), serves the pages, sets the figures and restarts
+  `Lake.run` -- the standing wants kept current, the licences read and the
+  health said each minute, the latency reported -- after a backoff should
+  it fail. Its tests bind `Work` to the suites' recorder
+  (`recorder.bind(...)`, `recorder.hear(...)`).
 - `src/unusual_whales/page.py` and `templates/` are the data role's two
   pages under Manage, Connection and Datasets, each a read tool
   (`read_connection`, `read_datasets`). The templates extend the role's and

@@ -40,7 +40,7 @@ def _declined(made: object) -> dict[str, int]:
 async def test_a_chains_series_never_minted(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY]))
+    await done.on_observations_wanted(want("w-1", [SPY]))
     series = sent(made, "RecordSeries", "series")
     # Seven standard series; the adjusted contract (root SPY1) is not recorded.
     assert len(series) == 7
@@ -63,7 +63,7 @@ async def test_a_chains_series_never_minted(tmp_path: Path) -> None:
 async def test_open_interest_dated_the_market_day_before(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY], data_type="meridian.v1.Statistic"))
+    await done.on_observations_wanted(want("w-1", [SPY], data_type="meridian.v1.Statistic"))
     stats = sent(made, "RecordStatistics", "statistics")
     oi = [s for s in stats if s.kind == ops.STATISTIC_KIND_OPEN_INTEREST]
     volume = [s for s in stats if s.kind == ops.STATISTIC_KIND_VOLUME]
@@ -81,7 +81,7 @@ async def test_before_the_session_opens_no_volume_is_dated_today(tmp_path: Path)
     clock = Clock()
     clock.advance(-7 * 3600)  # 08:00 New York
     done = work(tmp_path, made, clock=clock)
-    await done.on_want(want("w-1", [SPY]))
+    await done.on_observations_wanted(want("w-1", [SPY]))
     kinds = {s.kind for s in sent(made, "RecordStatistics", "statistics")}
     assert kinds == {ops.STATISTIC_KIND_OPEN_INTEREST}
 
@@ -89,7 +89,7 @@ async def test_before_the_session_opens_no_volume_is_dated_today(tmp_path: Path)
 async def test_a_calendar_that_does_not_answer_dates_nothing(tmp_path: Path) -> None:
     made = lake(calendar_answers=False)
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY]))
+    await done.on_observations_wanted(want("w-1", [SPY]))
     assert len(sent(made, "RecordSeries", "series")) == 7
     assert not made.on("RecordStatistics")
     assert done.calendar.error
@@ -98,8 +98,8 @@ async def test_a_calendar_that_does_not_answer_dates_nothing(tmp_path: Path) -> 
 async def test_an_unchanged_chain_is_not_sent_again(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY]))
-    await done.on_want(want("w-2", [SPY]))
+    await done.on_observations_wanted(want("w-1", [SPY]))
+    await done.on_observations_wanted(want("w-2", [SPY]))
     assert len(sent(made, "RecordSeries", "series")) == 7
     assert len(sent(made, "RecordStatistics", "statistics")) == 13
 
@@ -107,8 +107,8 @@ async def test_an_unchanged_chain_is_not_sent_again(tmp_path: Path) -> None:
 async def test_what_is_declined_and_why(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPX, NO_SYMBOL, "INS-UNKNOWN"]))
-    await done.on_want(want("w-2", [SPY], data_type="meridian.v1.Quote"))
+    await done.on_observations_wanted(want("w-1", [SPX, NO_SYMBOL, "INS-UNKNOWN"]))
+    await done.on_observations_wanted(want("w-2", [SPY], data_type="meridian.v1.Quote"))
     declined = _declined(made)
     assert declined == {
         SPX: ops.UNANSWERED_REASON_NOT_COVERED,
@@ -122,14 +122,14 @@ async def test_what_is_declined_and_why(tmp_path: Path) -> None:
 async def test_the_api_refusing_is_source_silent(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made, transport=Sample(401), mode="live")
-    await done.on_want(want("w-1", [SPY]))
+    await done.on_observations_wanted(want("w-1", [SPY]))
     assert _declined(made) == {SPY: ops.UNANSWERED_REASON_SOURCE_SILENT}
 
 
 async def test_another_sources_symbol_is_reported_beside_it(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [OTHER]))
+    await done.on_observations_wanted(want("w-1", [OTHER]))
     asked = made.on("ResolveIdentifier")
     assert asked and {(i.scheme, i.value, i.source) for i in asked[0].identifiers} == {
         ("symbol", "QQQ", "unusual_whales"),
@@ -142,7 +142,7 @@ async def test_another_sources_symbol_is_reported_beside_it(tmp_path: Path) -> N
 async def test_the_option_tape(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE))
+    await done.on_observations_wanted(want("w-1", [SPY], key="option_trades", data_type=TRADE))
     trades = made.rows("RecordTrades")
     assert len(trades) == 7
     first = trades[0]
@@ -177,7 +177,9 @@ async def test_a_standing_tape_records_each_print_once(tmp_path: Path) -> None:
     done = work(tmp_path, made, transport=sample, clock=clock)
     later = sample.trades["SPY"][4:]
     sample.trades["SPY"] = sample.trades["SPY"][:4]
-    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
+    await done.on_observations_wanted(
+        want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True)
+    )
     assert len(made.rows("RecordTrades")) == 4
     sample.trades["SPY"] += later
     clock.advance(10)
@@ -196,7 +198,9 @@ async def test_out_of_hours_a_standing_want_waits(tmp_path: Path) -> None:
     made = lake()
     clock = Clock()
     done = work(tmp_path, made, clock=clock)
-    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
+    await done.on_observations_wanted(
+        want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True)
+    )
     clock.advance(6 * 3600)  # 21:00 New York
     assert await done.due() == 0
 
@@ -205,7 +209,7 @@ async def test_a_range_before_the_latest_day_is_beyond_history(tmp_path: Path) -
     made = lake()
     done = work(tmp_path, made)
     day_before = Clock().ns - 2 * 86_400 * 1_000_000_000
-    await done.on_want(
+    await done.on_observations_wanted(
         want(
             "w-1",
             [SPY],
@@ -223,7 +227,7 @@ async def test_a_range_within_the_day(tmp_path: Path) -> None:
     done = work(tmp_path, made)
     start = 1_793_288_400_000_000_000  # 2026-10-29 15:40 UTC
     until = 1_793_295_600_000_000_000  # 2026-10-29 17:40 UTC
-    await done.on_want(
+    await done.on_observations_wanted(
         want(
             "w-1",
             [SPY],
@@ -239,7 +243,7 @@ async def test_a_range_within_the_day(tmp_path: Path) -> None:
 async def test_off_exchange_prints(tmp_path: Path) -> None:
     made = lake()
     done = work(tmp_path, made)
-    await done.on_want(want("w-1", [SPY], key="off_exchange", data_type=TRADE))
+    await done.on_observations_wanted(want("w-1", [SPY], key="off_exchange", data_type=TRADE))
     trades = made.rows("RecordTrades")
     assert len(trades) == 7
     assert all(not t.meta.series_key for t in trades)
@@ -262,10 +266,10 @@ async def test_a_withdrawn_want_is_no_longer_kept_current(tmp_path: Path) -> Non
     made = lake()
     clock = Clock()
     done = work(tmp_path, made, clock=clock)
-    await done.on_want(want("w-1", [SPY], standing=True))
+    await done.on_observations_wanted(want("w-1", [SPY], standing=True))
     calls = len(done.api.transport.requests)  # type: ignore[attr-defined]
     made.answer("WantWithdrawn", lambda _: ops.WantWithdrawnEvent(want_id="w-1"))
-    await made.receive(want_withdrawn=done.on_withdrawn)
+    await made.hear(done)
     clock.advance(600)
     await done.due()
     assert len(done.api.transport.requests) == calls  # type: ignore[attr-defined]
@@ -287,8 +291,12 @@ async def test_standing_reads_are_paced_to_the_allowance(tmp_path: Path) -> None
     clock = Clock()  # 15:00 New York: five hours before the count resets
     done = work(tmp_path, lake(), transport=Stated("1000", "100"), clock=clock)
     done.api.allowance.daily = True
-    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
-    await done.on_want(want("w-2", [SPY], key="off_exchange", data_type=TRADE, standing=True))
+    await done.on_observations_wanted(
+        want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True)
+    )
+    await done.on_observations_wanted(
+        want("w-2", [SPY], key="off_exchange", data_type=TRADE, standing=True)
+    )
     # 1,000 a day, 100 spent and 100 kept: 800 left for 18,000 s, one every 22.5 s.
     clock.advance(30)
     assert await done.due() == 1  # both due, one read: the next waits its share
@@ -303,7 +311,9 @@ async def test_with_the_allowance_spent_standing_reads_wait_for_the_reset(tmp_pa
     clock = Clock()
     done = work(tmp_path, lake(), transport=Stated("1000", "990"), clock=clock)
     done.api.allowance.daily = True
-    await done.on_want(want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True))
+    await done.on_observations_wanted(
+        want("w-1", [SPY], key="option_trades", data_type=TRADE, standing=True)
+    )
     clock.advance(30)
     assert await done.due() == 1  # the read that learns nothing is left
     clock.advance(3600)

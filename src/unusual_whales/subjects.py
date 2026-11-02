@@ -53,7 +53,9 @@ class Listing:
 class Symbols:
     """Each subject's ticker, resolved from its record once."""
 
-    plugin: Any
+    #: The data role object the acts are made on (SDK 0.35): the plugin's
+    #: class, or the suites' recorder.
+    role: Any
     clock_ns: Callable[[], int]
     held: dict[str, Listing] = field(default_factory=dict)
     reads_instruments: bool = True
@@ -68,7 +70,7 @@ class Symbols:
             return None
         now = self.clock_ns()
         try:
-            found = await self.plugin.resolve_instrument(instrument_id=subject, as_of_ns=now)
+            found = await self.role.resolve_instrument(instrument_id=subject, as_of_ns=now)
         except NotGranted:
             log.warning("this data plugin may not read an instrument's record")
             self.reads_instruments = False
@@ -100,13 +102,13 @@ class Symbols:
         given = ops.Identifier(scheme=other.scheme, value=other.value, source=other.source)
         now = self.clock_ns()
         try:
-            found = await self.plugin.resolve_identifier(
+            found = await self.role.resolve_identifier(
                 identifiers=[own, given], as_of_ns=now, stated_currency=CURRENCY
             )
             if found.found and found.instrument_id == subject:
                 return
             reason = ops.MISS_REASON_AMBIGUOUS if found.found else found.miss_reason
-            await self.plugin.report_missing_instrument(
+            await self.role.report_missing_instrument(
                 source=SOURCE,
                 identifiers=[own, given],
                 as_of_ns=now,
@@ -120,7 +122,8 @@ class Symbols:
 class Calendar:
     """The platform's US equity calendar, as the deployment answers it."""
 
-    plugin: Any
+    #: The data role object the calendar is read through (SDK 0.35).
+    role: Any
     calendar_id: str
     clock_ns: Callable[[], int]
     days: dict[dt.date, bool] = field(default_factory=dict)
@@ -133,7 +136,7 @@ class Calendar:
             today + dt.timedelta(days=LOOK_AHEAD_DAYS),
         )
         try:
-            answer = await self.plugin.read_calendar(
+            answer = await self.role.read_calendar(
                 calendar_id=self.calendar_id, from_date=span[0], to_date=span[1]
             )
         except (MeridianError, ValueError) as failed:
