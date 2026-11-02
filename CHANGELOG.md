@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.0
+
+open-meridian 0.35.2 (each role one class; rulings 1003 to 1005 and 1009 to
+1029), contract v29, on core v29's harness.
+
+- **The pins:** open-meridian 0.33.4 to 0.35.2, plugin-python:0.35.2 by tag
+  and digest, meridian 0.1.57 in the check, and the e2e's runtime and
+  harness at core 1ae36f0 (contract v29) by digest.
+- **One class for its role:** the work (`Work`) is the data role's class,
+  its acts made on itself; `__main__.Lake` adds the settings applied as
+  delivered and, in its `run`, the standing wants kept current, the
+  licences read and the health said each minute and the latency reported,
+  registered with `meridian.run`, which restarts it after a backoff should
+  it stop (the plugin no longer exits to be restarted). The raw answers are
+  tended from the settings as delivered (`RawStore.tend(settings=...)`).
+- **Each row once** through the SDK's `SentRows`, in place of its own copy.
+- **The suite at contract v29:** a derived series and a pool's factor
+  named not presented, with why.
+- **The e2e's reader** is two role classes, `reporting` and `signal`, on
+  `meridian.run_async`.
+
 ## 0.1.2
 
 SDK 0.33.4: raw-record writes and enum conversion fixes (ruling 937).

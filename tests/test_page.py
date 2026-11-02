@@ -22,11 +22,11 @@ def client(tmp_path: Path) -> PageClient:
     done = work(tmp_path)
 
     async def run() -> None:
-        await done.on_want(want("w-1", [SPY], standing=True))
-        await done.on_want(
+        await done.on_observations_wanted(want("w-1", [SPY], standing=True))
+        await done.on_observations_wanted(
             want("w-2", [SPY], key="option_trades", data_type="meridian.v1.Trade", standing=True)
         )
-        await done.on_want(want("w-3", [SPX]))
+        await done.on_observations_wanted(want("w-3", [SPX]))
 
     asyncio.run(run())
     hold(done)

@@ -1,4 +1,4 @@
-"""The data suite (meridian.suites) at contract v28, each case Unusual Whales
+"""The data suite (meridian.suites) at contract v29, each case Unusual Whales
 presents mapped to the plugin's own work on answers in the API's documented
 shape -- SPY's made-up chain, option prints and off-exchange prints.
 
@@ -51,6 +51,18 @@ _NO_QUOTES = (
     "trade's), so no quote row is made from it; the NBBO in force at each print travels on the "
     "print as its quote at trade"
 )
+#: Contract v29's data cases (SDK 0.34), neither of them Unusual Whales'.
+#: Apart, as meridian 0.1.57's role-suite rule does not know them yet.
+V29_NOT_PRESENTED = dict(
+    (
+        (
+            "records-a-derived-series",
+            "it records option chains and prints as Unusual Whales states them: no index level "
+            "or other series derived by its publisher",
+        ),
+        ("records-a-pools-factor", "Unusual Whales' API states no pool's factor"),
+    )
+)
 NOT_PRESENTED = {
     **{case: "it records option chains and prints, never a price" for case in _PRICES},
     "the-takers-side-stated": (
@@ -80,6 +92,7 @@ NOT_PRESENTED = {
     **{
         case: "it records no filings; Unusual Whales' filings are its own feed" for case in _FILINGS
     },
+    **V29_NOT_PRESENTED,
 }
 PRESENTED = {
     "a-subject-declined", "a-standing-want-withdrawn", "an-asset-that-does-not-resolve",
@@ -101,7 +114,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
                 keep(sample)
             done = work(tmp, recorder, sample)
             recorder.answer("ObservationsWanted", lambda _: message)
-            await recorder.receive(observations_wanted=done.on_want)
+            await recorder.hear(done)
 
         return produce
 
@@ -128,7 +141,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
             "WantWithdrawn",
             lambda _: ops.WantWithdrawnEvent(want_id="w-standing", dataset=f"{INSTANCE}:options"),
         )
-        await recorder.receive(want_withdrawn=done.on_withdrawn)
+        await recorder.hear(done)
 
     async def licences(recorder: Recorder) -> None:
         dataset = f"{INSTANCE}:options"
@@ -147,7 +160,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         sample = Sample()
         sample.trades["SPY"] = []
         done = work(tmp, recorder, sample)
-        await done.on_want(
+        await done.on_observations_wanted(
             want("w-standing", [SPY], key="option_trades", data_type=TRADE, standing=True)
         )
 
@@ -157,7 +170,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         answering(recorder)
         done = work(tmp, recorder)
         done.latency = latency
-        await done.on_want(
+        await done.on_observations_wanted(
             want("w-standing", [SPY], key="option_trades", data_type=TRADE, standing=True)
         )
 

@@ -26,12 +26,9 @@ from pathlib import Path
 from typing import Any
 
 import meridian
-from meridian.edge import RawStore, storage_root
 from meridian.roles import data
 
-from .api import Api
 from .declared import CATALOGUE, KEYS, UNDERLYING_SOURCE
-from .synthetic import Synthetic
 from .work import Work
 
 TITLE = "Unusual Whales"
@@ -169,9 +166,11 @@ def figures(work: Work) -> list[meridian.Figure]:
 
 
 def _running(request: meridian.Request) -> Work:
+    """The work the plugin holds (`hold`, before `meridian.run` serves the
+    pages): its data role's class, registered on the connection."""
     held = _held.get("work")
     if held is None:
-        held = Work(request.plugin, Api(RawStore(storage_root()), Synthetic(), "synthetic"))
+        raise RuntimeError("the pages are served once the plugin holds its work")
     return held
 
 

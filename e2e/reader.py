@@ -29,9 +29,10 @@ import urllib.parse
 
 import meridian
 from meridian import Interface, Page, SourceChoice
+from meridian.helpers import chains
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.roles import chains
+from meridian.roles import reporting, signal
 
 PORT = 8088
 LOOP = asyncio.new_event_loop()
@@ -67,14 +68,28 @@ def unanswered(answer):
              "reason": ops.UnansweredReason.Name(u.reason)} for u in answer.unanswered]
 
 
+class Reporting(reporting.Role):
+    """`reporting`: names SPY by its identifiers."""
+
+
+class Signal(signal.Role):
+    """`signal`: reads trades and an underlying's series, which `reporting`
+    does not."""
+
+
 class Reader:
-    def __init__(self, plugin):
-        self.plugin = plugin
+    """What the stand-in answers, through its role classes (SDK 0.35: each
+    role one class, its acts made through it). It hears nothing: each read
+    is asked when the runner asks."""
+
+    def __init__(self):
+        self.reporting = Reporting()
+        self.signal = Signal()
         self.spy = ""
 
     async def resolve(self):
         if not self.spy:
-            found = await self.plugin.resolve_identifier(
+            found = await self.reporting.resolve_identifier(
                 identifiers=ASKED, stated_description="SPDR S&P 500 ETF Trust", stated_currency="USD")
             if not found.instrument_id:
                 raise RuntimeError(f"SPY did not resolve: {found}")
@@ -83,7 +98,7 @@ class Reader:
 
     async def trades(self, query):
         one = lambda name: query.get(name, [""])[0]  # noqa: E731
-        answer = await self.plugin.list_trades(
+        answer = await self.signal.list_trades(
             subjects=[meridian.SubjectRef(entity_id=one("subject"))],
             sources=SourceChoice(named=[one("dataset")]),
             valid_from_ns=int(one("from") or 0), valid_until_ns=int(one("until") or 0),
@@ -92,7 +107,7 @@ class Reader:
 
     async def chain(self, query):
         one = lambda name: query.get(name, [""])[0]  # noqa: E731
-        series = await chains.read_chain(self.plugin, one("subject"), one("expiration"))
+        series = await chains.read_chain(self.signal, one("subject"), one("expiration"))
         return {"series": [
             {"key": [k.value for k in s.meta.series_key],
              "dataset": s.meta.source.dataset,
@@ -140,14 +155,15 @@ DECLARATION = meridian.Declaration(
 )
 
 
-async def main():
-    plugin = await meridian.connect(declaration=DECLARATION)
-    print(f"reader registered as {plugin.identity.instance_id}", flush=True)
-    threading.Thread(target=serve, args=(Reader(plugin),), daemon=True).start()
-    while True:
-        await asyncio.sleep(3600)
+def main():
+    reader = Reader()
+    threading.Thread(target=serve, args=(reader,), daemon=True).start()
+    # SDK 0.35: its role classes registered on one connection, until the
+    # harness stops it.
+    LOOP.run_until_complete(meridian.run_async(
+        declaration=DECLARATION, roles=[reader.reporting, reader.signal]))
 
 
 if __name__ == "__main__":
     asyncio.set_event_loop(LOOP)
-    LOOP.run_until_complete(main())
+    main()

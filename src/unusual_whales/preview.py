@@ -88,16 +88,22 @@ def _work() -> Work:
     )
     lake.answer("ReadCalendar", calendar)
     store = RawStore(Path(tempfile.mkdtemp(prefix="unusual-whales-preview-")))
-    return Work(lake, Api(store, Synthetic(), "synthetic"), clock_ns=lambda: AT_NS)
+    return lake.bind(Work(Api(store, Synthetic(), "synthetic"), clock_ns=lambda: AT_NS))
 
 
 async def worked() -> Work:
     """The work as sample data leaves it, on the stand-in lake."""
     work = _work()
-    await work.on_want(want("want-chain", "options", SPY, "meridian.v1.ListedSeries", True))
-    await work.on_want(want("want-tape", "option_trades", SPY, "meridian.v1.Trade", True))
-    await work.on_want(want("want-off", "off_exchange", SPY, "meridian.v1.Trade", True))
-    await work.on_want(want("want-spx", "options", SPX, "meridian.v1.Statistic"))
+    await work.on_observations_wanted(
+        want("want-chain", "options", SPY, "meridian.v1.ListedSeries", True)
+    )
+    await work.on_observations_wanted(
+        want("want-tape", "option_trades", SPY, "meridian.v1.Trade", True)
+    )
+    await work.on_observations_wanted(
+        want("want-off", "off_exchange", SPY, "meridian.v1.Trade", True)
+    )
+    await work.on_observations_wanted(want("want-spx", "options", SPX, "meridian.v1.Statistic"))
     return work
 
 
