@@ -14,7 +14,9 @@ lake.
 **An API token is needed.** Unusual Whales' API plans (Options Starter,
 Basic, Advanced) each have a free trial. The token is a secret setting: sent
 to the API alone, never logged or shown. Unusual Whales' terms are your
-deployment's to settle with Unusual Whales: see [docs/terms.md](docs/terms.md).
+deployment's to settle with Unusual Whales: each dataset describes them in
+words on the Data sources page (contract 30), and
+[docs/terms.md](docs/terms.md) says the same.
 
 It records market data, never Unusual Whales' own figures (flow alerts, net
 premium, greek exposure, max pain and the like), and never an inferred side.

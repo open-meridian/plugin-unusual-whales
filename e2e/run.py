@@ -16,7 +16,8 @@ with the plugin.
 3. Parity: through the deployment's MCP, `read_connection` and
    `read_datasets` answer what the pages show -- the token not set, three
    datasets, the source behind each -- and core's `dashboard__list_datasets`
-   lists the three as the catalogue declares them.
+   lists the three as the catalogue declares them, Unusual Whales' terms in
+   words (contract 30).
 4. Licensed and entitled at the Data sources page: the reader is entitled to
    the three.
 5. The option tape: the reader's read of SPY's prints of 29 October 2026 is
@@ -165,8 +166,10 @@ def run():
     listed = {d["dataset"]: d for d in call("dashboard__list_datasets")["datasets"]}
     must(all(d in listed for d in DATASETS), f"step 3, core lists the three datasets: {list(listed)}")
     entry = listed[TAPE].get("catalogue_entry", {})
-    must(entry.get("modes") == ["pull", "stream"] and entry.get("day_time_zone") == "America/New_York",
-         f"step 3, core lists {TAPE} as declared: {listed[TAPE]}")
+    must(entry.get("modes") == ["pull", "stream"] and entry.get("day_time_zone") == "America/New_York"
+         and entry.get("gap_recovery") == "stream_only"
+         and "redistribution licence" in json.dumps(entry.get("terms_and_pricing", "")),
+         f"step 3, core lists {TAPE} as declared, its terms in words: {listed[TAPE]}")
 
     # 4. Licensed and entitled.
     for dataset in DATASETS:

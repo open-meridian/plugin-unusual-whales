@@ -41,10 +41,11 @@ field; until then it is said here and on the Datasets page.
 
 ## The licence
 
-Each dataset's default licence declares what the public pages say: kept,
-one person's, displayed, derived data for internal use only (the pages say
-nothing more of it), redistribution only under a licence. The dataset's
-licence on your Data sources page is what your deployment records; neither
+Each dataset describes what the public pages say in words, on your Data
+sources page, and declares no licence: the licence you set there -- on the
+pages' terms, kept, one person's, displayed, derived data for internal use
+only, redistribution only under a licence -- is what your deployment
+records; neither
 the plugin nor this page says whether your use meets anyone's terms.
 Unusual Whales is a trademark of its owner; this project is not affiliated
 with or endorsed by Unusual Whales.

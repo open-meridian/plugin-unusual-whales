@@ -38,14 +38,25 @@ def test_each_by_its_kinds() -> None:
         ]  # fmt: skip
 
 
-def test_each_licence_is_unusual_whales_public_terms() -> None:
+def test_each_datasets_terms_are_unusual_whales_public_terms() -> None:
+    # Contract 30 (ruling 1032): the public pages' terms in words, the source
+    # behind each first, never a licence; how a gap is recovered; and the
+    # off-exchange prints in the FINRA facilities' hours.
     for dataset in CATALOGUE:
-        licence = dataset.licence_default
-        assert licence is not None
-        assert licence.kept and licence.display and licence.personal_use
-        assert licence.derived_use_terms == "internal_only"
-        assert licence.redistribution == "licence_required"
-        assert "not affiliated" in licence.not_affiliated_notice
+        terms = dataset.terms_and_pricing
+        assert terms.startswith("OPRA" if dataset.key != "off_exchange" else "FINRA")
+        assert "personal use" in terms and "redistribution licence" in terms
+        assert "not affiliated" in terms and len(terms) <= 2000
+    assert {d.key: d.gap_recovery for d in CATALOGUE} == {
+        "options": "none",
+        "option_trades": "stream_only",
+        "off_exchange": "stream_only",
+    }
+    assert {d.key: d.sessions_calendar_id for d in CATALOGUE} == {
+        "options": "",
+        "option_trades": "",
+        "off_exchange": "CAL-01M5TTQCH5NTYF33970T8GVF1D",
+    }
 
 
 def test_the_token_is_a_secret_setting() -> None:
