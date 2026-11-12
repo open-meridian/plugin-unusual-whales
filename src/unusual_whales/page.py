@@ -37,9 +37,6 @@ pages = meridian.Pages(TITLE, templates=Path(__file__).parent / "templates")
 
 #: How many wants the Datasets tab draws; read_datasets answers every one held.
 SHOWN_WANTS = 3
-DEFAULT_TERMS = (
-    "kept, one person's, display, derived use internal only, redistribution by licence only"
-)
 #: Each dataset's source behind, as the Datasets column says it briefly.
 BEHIND_SHORT = {key: ("FINRA TRF" if key == "off_exchange" else "OPRA") for key in KEYS}
 
@@ -133,7 +130,7 @@ def datasets_read(work: Work) -> DatasetsRead:
         "As the token's plan allows" if work.api.mode == "live" else "Sample data",
     )
     return DatasetsRead(
-        served=[replace(s, default_terms=DEFAULT_TERMS) for s in served],
+        served=served,
         wants=list(data.want_rows(work.wants)),
         reads_instruments=work.symbols.reads_instruments,
         behind=[

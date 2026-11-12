@@ -42,13 +42,23 @@ declared: the lake has no kind for a publisher's derived figure (a derived
 series is a `signal` plugin's own, never a publisher's), so they wait for
 one (docs/overview.md says which).
 
-**Each licence default** is what Unusual Whales' public pages say of its
-API, which the deployment's licence confirms or replaces on Data sources --
-never whether a deployment meets them: kept, for personal or internal use,
-also after a subscription ends; one person's (the API is sold "strictly for
-personal use"); displayed to its holder; derived data for internal use
-only, since the pages say nothing more of it; redistribution only under a
-redistribution licence from Unusual Whales; not affiliated.
+**Each dataset's terms and pricing** (contract 30, ruling 1032;
+`terms_and_pricing`) are what Unusual Whales' public pages say of its API,
+in plain words, with the source behind the dataset: its plans, personal
+use, keeping data for personal or internal purposes also after a
+subscription ends, no redistribution without its licence; not affiliated.
+Never a licence: the licence the deployment's admin sets on Data sources is
+the one enforced, and the plugin says nothing of whether a deployment meets
+anyone's terms.
+
+**How a gap is recovered** (contract 30, `gap_recovery`): the two tapes
+`stream_only` -- the REST tape serves the latest trading day alone, so a
+day missed is never served again -- and `options` `none`, a chain being
+served as it stands now. **Trading sessions** (`sessions_calendar_id`,
+ruling 455): `off_exchange` names the platform's FINRA Trade Reporting
+Facilities operating hours, 04:00 to 20:00 New York, the hours its prints
+are reported in; OPRA's hours across its exchanges are no calendar the
+platform curates yet.
 
 **Storage**: one kind of raw record, the API's answers as received (never
 the token), a month by default.
@@ -61,7 +71,7 @@ sample data, a developer's.
 from __future__ import annotations
 
 import meridian
-from meridian import DatasetDeclaration, DatasetLicence, RecordKind
+from meridian import DatasetDeclaration, RecordKind
 
 VENDOR = "Unusual Whales"
 OPTIONS, OPTION_TRADES, OFF_EXCHANGE = "options", "option_trades", "off_exchange"
@@ -106,15 +116,25 @@ NOT_AFFILIATED = (
     "Unusual Whales is a trademark of its owner. This plugin is not affiliated with or "
     "endorsed by Unusual Whales."
 )
-LICENCE = DatasetLicence(
-    kept=True,
-    derived_use=False,
-    derived_use_terms="internal_only",
-    display=True,
-    personal_use=True,
-    redistribution="licence_required",
-    not_affiliated_notice=NOT_AFFILIATED,
+#: What Unusual Whales' public pages say of its API, as read on 30 October
+#: 2026 (docs/terms.md), in plain words (contract 30, ruling 1032): each
+#: dataset's terms end with these.
+TERMS = (
+    "Every API request asks for a token, under a plan: the public API page lists API "
+    "Options Starter, API Basic and API Advanced, each with a free trial, and says the API "
+    "is for personal use. The API's conventions page says its data may be kept and used for "
+    "personal or internal purposes, also after a subscription ends. Redistribution is not "
+    "allowed without a redistribution licence from Unusual Whales, and accounts found "
+    "redistributing are terminated. A 15-minute delayed service, at a lower price, is "
+    "arranged with its sales team. Prices are Unusual Whales', per plan. " + NOT_AFFILIATED
 )
+#: How a gap in each is recovered: the tape serves the latest trading day
+#: alone, and a chain as it stands now.
+GAP_RECOVERY = {OPTIONS: "none", OPTION_TRADES: "stream_only", OFF_EXCHANGE: "stream_only"}
+#: The platform's "FINRA Trade Reporting Facilities operating hours"
+#: trading-sessions calendar, read from the platform on 2026-11-12: 04:00 to
+#: 20:00 New York each business day.
+FINRA_TRF_SESSIONS = "CAL-01M5TTQCH5NTYF33970T8GVF1D"
 
 
 @meridian.settings
@@ -148,10 +168,12 @@ def _tape(key: str) -> DatasetDeclaration:
         modes=["pull", "stream"],
         cadence=TAPE_CADENCE_SECONDS,
         history=HISTORY_DAYS,
-        licence_default=LICENCE,
+        terms_and_pricing=UNDERLYING_SOURCE[key] + ". " + TERMS,
+        gap_recovery=GAP_RECOVERY[key],
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
         calendar_id=US_EQUITY_CALENDAR,
+        sessions_calendar_id=FINRA_TRF_SESSIONS if key == OFF_EXCHANGE else "",
         declared_delay_ns=DECLARED_DELAY_NS,
     )
 
@@ -164,7 +186,8 @@ CATALOGUE = [
         modes=["pull"],
         cadence=CHAIN_CADENCE_SECONDS,
         history=HISTORY_DAYS,
-        licence_default=LICENCE,
+        terms_and_pricing=UNDERLYING_SOURCE[OPTIONS] + ". " + TERMS,
+        gap_recovery=GAP_RECOVERY[OPTIONS],
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
         calendar_id=US_EQUITY_CALENDAR,

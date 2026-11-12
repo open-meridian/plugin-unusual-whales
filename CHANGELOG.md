@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.3.0
+
+On open-meridian 0.36.0, contract 30, on core aae501d's harness (chart
+0.1.538); `meridian` 0.1.60 in the check. What the plugin records is
+unchanged.
+
+- **Unusual Whales' terms in words** (ruling 1032): each dataset's
+  `licence_default` is gone, and `terms_and_pricing` names the source behind
+  it (OPRA, or FINRA's trade reporting facilities on the consolidated tape)
+  and what Unusual Whales' public pages say of its API: plans and trials,
+  personal use, data kept for personal or internal purposes after a
+  subscription ends, no redistribution without its licence, a delayed
+  service by arrangement, not affiliated. Shown on Data sources and in the
+  Datasets page's row details (the page's own default-terms line is gone).
+  The licence a deployment admin sets is the one enforced.
+- **How a gap is recovered** (`gap_recovery`): the two tapes `stream_only`
+  (the REST tape serves the latest trading day alone), `options` `none` (a
+  chain is served as it stands now).
+- **Off-exchange prints in the FINRA facilities' hours**
+  (`sessions_calendar_id`, ruling 455): `off_exchange` names the platform's
+  FINRA Trade Reporting Facilities operating hours
+  (`CAL-01M5TTQCH5NTYF33970T8GVF1D`, 04:00 to 20:00 New York). OPRA's hours
+  across its exchanges are no calendar the platform curates yet.
+- **Row keys checked against the lake's rule 5** (ruled 2026-11-12): an
+  option print is keyed by Unusual Whales' trade ID and an off-exchange
+  print by its symbol and tracking ID, each valid at its trade time, a
+  cancellation the same key's next version, `cancelled`. **Two cases change
+  valid time:** an option series' open interest or volume is keyed by its
+  series, its day and its kind (the SDK's `helpers.statistic`) but valid
+  from when the plugin read it, so a value read again later the same day
+  restates the key under another valid time; and a series' terms
+  (`helpers.option_series`) are keyed by its OCC symbol but valid from when
+  read, so terms that change restate under another valid time. Neither has
+  a cancellation; listed for step 3d, unchanged.
+- e2e: core lists the option tape with its terms in words and its gap
+  recovered by the stream only.
+- `meridian plugin migrate --to 0.36.0` moved the pins (the base by digest,
+  `meridian` 0.1.60); its `licence-default-left` findings done by hand.
+- Core's runtime and harness images at `aae501d`, by digest.
+
 ## 0.2.0
 
 open-meridian 0.35.2 (each role one class; rulings 1003 to 1005 and 1009 to
