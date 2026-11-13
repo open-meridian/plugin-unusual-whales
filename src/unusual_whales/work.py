@@ -60,7 +60,7 @@ from meridian.operations import (
 )
 from meridian.plugin.v1 import operations_pb2 as ops
 from meridian.roles import data
-from meridian.roles.data import SentRows, Wants, unconverted
+from meridian.roles.data import SentRows, Wants, option_chains, unconverted
 
 from . import convert
 from .api import PAGE, Api, ApiError
@@ -138,6 +138,12 @@ class Work(data.Role):
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     #: When the next standing read may be made, by the allowance's budget.
     paced_until_ns: int = 0
+    #: Each series' first valid time and subject (SDK 0.36.3), in the
+    #: plugin's storage where it has one; never cleared on a switch of
+    #: source.
+    series_times: option_chains.SeriesTimes = field(
+        default_factory=lambda: option_chains.SeriesTimes(None)
+    )
 
     def __post_init__(self) -> None:
         self.wants = Wants(self, KEYS, clock_ns=self.clock_ns)
@@ -271,22 +277,34 @@ class Work(data.Role):
                     # not stated in the chain, so it is not recorded.
                     counts.unread += 1
                     continue
-                row = helpers.option_series(
-                    subject,
-                    contract.osi,
-                    template_id=TEMPLATE_ID,
-                    template_version=TEMPLATE_VERSION,
-                    dataset=dataset,
-                    currency=CURRENCY,
-                    exercise_style=AMERICAN,
-                    settlement_method=PHYSICAL,
-                    contract_multiplier=STANDARD_SHARES,
-                    deliverable=[(subject, STANDARD_SHARES)],
-                    valid_from_ns=now,
-                    raw=raw,
-                )
-                terms = repr([(f.path, f.value) for f in row.fields])
-                if self.sent.changed(SERIES, dataset, f"{contract.osi}@{subject}", terms):
+
+                def build(
+                    valid_from_ns: int,
+                    adjusted_on: dt.date | None,
+                    osi: str = contract.osi,
+                    raw: Any = raw,
+                ) -> Any:
+                    return helpers.option_series(
+                        subject,
+                        osi,
+                        template_id=TEMPLATE_ID,
+                        template_version=TEMPLATE_VERSION,
+                        dataset=dataset,
+                        currency=CURRENCY,
+                        exercise_style=AMERICAN,
+                        settlement_method=PHYSICAL,
+                        contract_multiplier=STANDARD_SHARES,
+                        deliverable=[(subject, STANDARD_SHARES)],
+                        valid_from_ns=valid_from_ns,
+                        raw=raw,
+                        adjusted_on=adjusted_on,
+                    )
+
+                row = self.series_times.series(
+                    build, dataset=dataset, osi=contract.osi, subject=subject, now_ns=now,
+                    today=new_york_date(now), waiting=False,
+                )  # fmt: skip
+                if row is not None:
                     series.append(row)
                 key = helpers.osi_key(contract.osi)
                 for kind, value in (
@@ -305,7 +323,12 @@ class Work(data.Role):
                     ):
                         statistics.append(stat)
         if series:
-            await self.wants.record("series", series, OPTIONS, want_id)
+
+            async def send_batch(batch: list[Any]) -> None:
+                await self.wants.record("series", batch, OPTIONS, want_id)
+
+            taken = await self.series_times.record(send_batch, series, new_york_date(now))
+            counts.unchanged += taken
         if statistics:
             await self.wants.record("statistics", statistics, OPTIONS, want_id)
         return ""

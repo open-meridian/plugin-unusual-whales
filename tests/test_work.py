@@ -345,3 +345,30 @@ async def test_with_the_allowance_spent_standing_reads_wait_for_the_reset(tmp_pa
     clock.advance(3600)
     assert await done.due() == 0
     assert done.paced_until_ns == Clock().ns + 5 * 3600 * 1_000_000_000  # 20:00 New York
+
+
+async def test_a_restart_keeps_every_series_valid_time(tmp_path: Path) -> None:
+    """The row-key rule (spec/the-lake rule 5): after a restart a day later,
+    no series is restated under the new read's time, and each series' first
+    valid time is kept in the plugin's storage (SDK 0.36.3,
+    option_chains.SeriesTimes)."""
+    import json
+
+    from meridian.roles.data import option_chains
+
+    kept = tmp_path / "series.json"
+    made = lake()
+    clock = Clock()
+    done = work(tmp_path / "raw", made, clock=clock)
+    done.series_times = option_chains.SeriesTimes(kept)
+    await done.on_observations_wanted(want("w-1", [SPY]))
+    first = {s.meta.row_key: s.meta.valid_from_ns for s in sent(made, "RecordSeries", "series")}
+    assert len(first) == 7
+    clock.advance(24 * 3600)
+    again = lake()
+    restarted = work(tmp_path / "raw", again, clock=clock)
+    restarted.series_times = option_chains.SeriesTimes(kept)
+    await restarted.on_observations_wanted(want("w-2", [SPY]))
+    assert sent(again, "RecordSeries", "series") == [], "none restated under a new time"
+    held = json.loads(kept.read_text())["series"]
+    assert {osi: each["valid_from_ns"] for by in held.values() for osi, each in by.items()} == first
