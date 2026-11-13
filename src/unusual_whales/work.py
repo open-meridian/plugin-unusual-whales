@@ -297,7 +297,7 @@ class Work(data.Role):
                     if value is None or not day:
                         continue
                     stat = helpers.statistic(
-                        subject, key, kind, value, day, dataset=dataset, valid_from_ns=now, raw=raw
+                        subject, key, kind, value, day, dataset=dataset, raw=raw
                     )
                     assert stat.meta is not None
                     if self.sent.changed(

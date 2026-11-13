@@ -5,6 +5,7 @@ want; and what is declined, with why."""
 
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
 
 from unusual_whales.api import COUNT_HEADER, LIMIT_HEADER
+from unusual_whales.convert import NEW_YORK
 
 from conftest import (
     NO_SYMBOL,
@@ -74,6 +76,30 @@ async def test_open_interest_dated_the_market_day_before(tmp_path: Path) -> None
     assert oi[0].meta.row_key == "SPY   261120C00580000:2026-10-28:OI"
     calendar = made.on("ReadCalendar")
     assert calendar and calendar[0].calendar_id.startswith("CAL-")
+
+
+async def test_a_statistic_read_again_keeps_its_valid_time(tmp_path: Path) -> None:
+    """A row key fixes its valid time (spec/the-lake rule 5; SDK 0.36.2): a
+    statistic is valid from the start of the day it describes, in New York,
+    never when it was read, so read again -- here by an instance restarted
+    two hours later -- it is restated under the same valid time."""
+    asked = want("w-1", [SPY], data_type="meridian.v1.Statistic")
+    made = lake()
+    await work(tmp_path, made).on_observations_wanted(asked)
+    first = sent(made, "RecordStatistics", "statistics")
+
+    def midnight(day: str) -> int:
+        start = dt.datetime.combine(dt.date.fromisoformat(day), dt.time(), NEW_YORK)
+        return int(start.timestamp()) * 10**9
+
+    assert first and all(s.meta.valid_from_ns == midnight(s.meta.business_date) for s in first)
+    again, clock = lake(), Clock()
+    clock.advance(2 * 3600)
+    await work(tmp_path, again, clock=clock).on_observations_wanted(asked)
+    second = sent(again, "RecordStatistics", "statistics")
+    assert {s.meta.row_key: s.meta.valid_from_ns for s in second} == {
+        s.meta.row_key: s.meta.valid_from_ns for s in first
+    }
 
 
 async def test_before_the_session_opens_no_volume_is_dated_today(tmp_path: Path) -> None:
