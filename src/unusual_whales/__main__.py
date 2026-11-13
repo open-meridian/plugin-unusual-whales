@@ -29,6 +29,7 @@ from typing import Any
 import meridian
 from meridian.edge import RawStore, storage_root
 from meridian.roles import Latency
+from meridian.roles.data import option_chains
 
 from .api import Api, Https
 from .declaration import DECLARATION, PORT
@@ -111,7 +112,11 @@ def main() -> None:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     store = RawStore(storage_root(), KIND)
-    lake = Lake(source(store, sample_data=False, token=""))
+    granted = meridian.edge.storage_dir()
+    lake = Lake(
+        source(store, sample_data=False, token=""),
+        series_times=option_chains.SeriesTimes(granted / "series.json" if granted else None),
+    )
     lake.store = store
     lake.latency = Latency()
     hold(lake)

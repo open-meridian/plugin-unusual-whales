@@ -5,6 +5,7 @@ want; and what is declined, with why."""
 
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
 
 from unusual_whales.api import COUNT_HEADER, LIMIT_HEADER
+from unusual_whales.convert import NEW_YORK
 
 from conftest import (
     NO_SYMBOL,
@@ -74,6 +76,30 @@ async def test_open_interest_dated_the_market_day_before(tmp_path: Path) -> None
     assert oi[0].meta.row_key == "SPY   261120C00580000:2026-10-28:OI"
     calendar = made.on("ReadCalendar")
     assert calendar and calendar[0].calendar_id.startswith("CAL-")
+
+
+async def test_a_statistic_read_again_keeps_its_valid_time(tmp_path: Path) -> None:
+    """A row key fixes its valid time (spec/the-lake rule 5; SDK 0.36.2): a
+    statistic is valid from the start of the day it describes, in New York,
+    never when it was read, so read again -- here by an instance restarted
+    two hours later -- it is restated under the same valid time."""
+    asked = want("w-1", [SPY], data_type="meridian.v1.Statistic")
+    made = lake()
+    await work(tmp_path, made).on_observations_wanted(asked)
+    first = sent(made, "RecordStatistics", "statistics")
+
+    def midnight(day: str) -> int:
+        start = dt.datetime.combine(dt.date.fromisoformat(day), dt.time(), NEW_YORK)
+        return int(start.timestamp()) * 10**9
+
+    assert first and all(s.meta.valid_from_ns == midnight(s.meta.business_date) for s in first)
+    again, clock = lake(), Clock()
+    clock.advance(2 * 3600)
+    await work(tmp_path, again, clock=clock).on_observations_wanted(asked)
+    second = sent(again, "RecordStatistics", "statistics")
+    assert {s.meta.row_key: s.meta.valid_from_ns for s in second} == {
+        s.meta.row_key: s.meta.valid_from_ns for s in first
+    }
 
 
 async def test_before_the_session_opens_no_volume_is_dated_today(tmp_path: Path) -> None:
@@ -319,3 +345,30 @@ async def test_with_the_allowance_spent_standing_reads_wait_for_the_reset(tmp_pa
     clock.advance(3600)
     assert await done.due() == 0
     assert done.paced_until_ns == Clock().ns + 5 * 3600 * 1_000_000_000  # 20:00 New York
+
+
+async def test_a_restart_keeps_every_series_valid_time(tmp_path: Path) -> None:
+    """The row-key rule (spec/the-lake rule 5): after a restart a day later,
+    no series is restated under the new read's time, and each series' first
+    valid time is kept in the plugin's storage (SDK 0.36.3,
+    option_chains.SeriesTimes)."""
+    import json
+
+    from meridian.roles.data import option_chains
+
+    kept = tmp_path / "series.json"
+    made = lake()
+    clock = Clock()
+    done = work(tmp_path / "raw", made, clock=clock)
+    done.series_times = option_chains.SeriesTimes(kept)
+    await done.on_observations_wanted(want("w-1", [SPY]))
+    first = {s.meta.row_key: s.meta.valid_from_ns for s in sent(made, "RecordSeries", "series")}
+    assert len(first) == 7
+    clock.advance(24 * 3600)
+    again = lake()
+    restarted = work(tmp_path / "raw", again, clock=clock)
+    restarted.series_times = option_chains.SeriesTimes(kept)
+    await restarted.on_observations_wanted(want("w-2", [SPY]))
+    assert sent(again, "RecordSeries", "series") == [], "none restated under a new time"
+    held = json.loads(kept.read_text())["series"]
+    assert {osi: each["valid_from_ns"] for by in held.values() for osi, each in by.items()} == first
