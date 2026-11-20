@@ -82,6 +82,12 @@ class Lake(Work):
             log.warning("the raw answers were not tended this time: %s", failed)
 
     async def on_start(self) -> None:
+        # Each series' first valid time, held in its storage across restarts,
+        # read once registered: on an instance run as shards or with a
+        # standby pod, the shard's own folder (open-meridian 0.37.0), read
+        # afresh when registered again.
+        granted = meridian.edge.storage_dir()
+        self.series_times = option_chains.SeriesTimes(granted / "series.json" if granted else None)
         # Contract v28 (ruling 518): each row recorded unasked or for a
         # standing want has its age at the edge recorded, reported every 10
         # seconds (ReportLatency) through this class.
@@ -112,11 +118,8 @@ def main() -> None:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     store = RawStore(storage_root(), KIND)
-    granted = meridian.edge.storage_dir()
-    lake = Lake(
-        source(store, sample_data=False, token=""),
-        series_times=option_chains.SeriesTimes(granted / "series.json" if granted else None),
-    )
+    # Each series' first valid time is read from storage in `on_start`.
+    lake = Lake(source(store, sample_data=False, token=""))
     lake.store = store
     lake.latency = Latency()
     hold(lake)

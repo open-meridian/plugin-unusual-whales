@@ -9,11 +9,17 @@ import datetime as dt
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+from meridian import edge
+from meridian.edge import RawStore
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles import Latency
 
+from unusual_whales.__main__ import Lake, source
 from unusual_whales.api import COUNT_HEADER, LIMIT_HEADER
 from unusual_whales.convert import NEW_YORK
+from unusual_whales.declared import KIND
 
 from conftest import (
     NO_SYMBOL,
@@ -372,3 +378,21 @@ async def test_a_restart_keeps_every_series_valid_time(tmp_path: Path) -> None:
     assert sent(again, "RecordSeries", "series") == [], "none restated under a new time"
     held = json.loads(kept.read_text())["series"]
     assert {osi: each["valid_from_ns"] for by in held.values() for osi, each in by.items()} == first
+
+
+async def test_series_times_read_once_registered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each series' first valid time is read from storage in the class's
+    on_start, once registered: on an instance run as shards, its shard's own
+    folder, read afresh when it registers again (open-meridian 0.37.0)."""
+    monkeypatch.setenv("MERIDIAN_STORAGE_DIR", str(tmp_path))
+    monkeypatch.setenv("MERIDIAN_PLUGIN_SHARDS", "2")
+    monkeypatch.setattr(edge, "_serving", (1, 2))
+    lake = Lake(source(RawStore(tmp_path, KIND), sample_data=True, token=""))
+    lake.latency = Latency()
+    await lake.on_start()
+    assert lake.series_times.path == tmp_path / "shard-1" / "series.json"
+    monkeypatch.setattr(edge, "_serving", (0, 2))
+    await lake.on_start()
+    assert lake.series_times.path == tmp_path / "shard-0" / "series.json"
